@@ -202,8 +202,10 @@ if __name__ == '__main__':
     inputSize = 26 * 3
     hiddenSize = 26 * 1.5
     nn = NameNN(inputSize,hiddenSize)
-    wordlist3 = getNames('malenames.txt')
+    wordlist3 = getNames('femalenames.txt')
     nn.addWords(wordlist3)
-    nn.runNTimes(10000)
+    nn.runNTimes(40000)
     for i in chararray:
-        print(nn.getWord(base = i))
+        print(nn.getWord(base = ''))
+        print(nn.getWord(base = ''))
+        print(nn.getWord(base = ''))
