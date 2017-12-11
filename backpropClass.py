@@ -4,6 +4,8 @@
 # https://github.com/lazyprogrammer/machine_learning_examplesthon
 from __future__ import print_function, division
 from builtins import range
+import csv
+import re
 # Note: you may need to update your version of future
 # sudo pip install -U future
 
@@ -12,105 +14,103 @@ import matplotlib.pyplot as plt
 import string
 np.random.seed(1)
 chararray = list(string.ascii_lowercase) + ['']
-class NameNN:
 
+class NameNN:
     def __init__(self, inputSize,hiddenSize, learning_rate = 1e-2):
-        self.I = int(inputSize + 1)
-        self.H = int(hiddenSize)
-        self.O = 27
-        self.learning_rate = learning_rate
-        self.lettersAccepted = inputSize // 26
-        self.words = []
-        self.createLayers()
+        self.I = int(inputSize + 1)#input layer size added one to keep track of current word length
+        self.H = int(hiddenSize)# hiddden layer size
+        self.O = 27#output layer size
+        self.learning_rate = learning_rate#duh
+        self.lettersAccepted = inputSize // 26#how many letters to look back
+        self.words = []#database of words
+        self.createLayers()#randomly assign values to all weights
 
     def createLayers(self):
-        self.W1 = np.random.randn(self.I, self.H)
-        self.b1 = np.random.randn(self.H)
-        self.W2 = np.random.randn(self.H, self.O)
-        self.b2 = np.random.randn(self.O)
+        self.W1 = np.random.randn(self.I, self.H)#weights between input and hidden
+        self.b1 = np.random.randn(self.H)#bias for hidden layer
+        self.W2 = np.random.randn(self.H, self.O)  #weights between hidden adn output
+        self.b2 = np.random.randn(self.O)#bias for output layers
 
     def forward(self,X):
-        hidden = 1 / (1 + np.exp(-X.dot(self.W1) - self.b1))
-        A = hidden.dot(self.W2) + self.b2
-        expA = np.exp(A)
-        output = expA / expA.sum(axis=0, keepdims=True)
+        hidden = 1 / (1 + np.exp(-X.dot(self.W1) - self.b1))#calculate hidden node values
+        A = hidden.dot(self.W2) + self.b2#calculate output node values
+        expA = np.exp(A)#take exp
+        output = expA / expA.sum(axis=0, keepdims=True)#make sure everything adds up to 1
         return output, hidden
 
     def updateWeights(self,inputL, hidden, output,true):
-        difference = true - output
+        difference = true - output#error for each output node
         # print("Hidden:",hidden)
-        DW2= np.outer(hidden,difference)
-        Db2 = difference.sum(axis=0)
-        DHidden = (difference).dot(self.W2.T) * hidden * (1 - hidden)
-        Db1 = DHidden.sum(axis=0)
-        DW1 =  np.outer(inputL,DHidden)
-        self.W2 += self.learning_rate * DW2
+        DW2= np.outer(hidden,difference)#change W2 weights according to error and hideen values
+        Db2 = difference.sum(axis=0)#change the bias according to error
+        DHidden = (difference).dot(self.W2.T) * hidden * (1 - hidden) #calculate error of the hidden nodes
+        Db1 = DHidden.sum(axis=0)#update biases for hidden nodes based on hidden error
+        DW1 =  np.outer(inputL,DHidden)#finally update weights for hidden nodes based on input values
+        self.W2 += self.learning_rate * DW2#actually change everything
         self.b2 += self.learning_rate * Db2
         self.W1 += self.learning_rate * DW1
         self.b1 += self.learning_rate * Db1
 
     def cost(self,T, Y):
-        tot = T * (T-Y)
+        tot = T * (T-Y)#calculate cost(somewhat meaningless for word generation)
         return tot.sum()
 
     def batch(self, word):
-        for i in range(len(word)):
-            # print('W:',word)
-            # print('i:',i)
-            inputVec = np.zeros(self.I)
+        '''Update the model according to a word'''
+        for i in range(len(word)):#loop through letters of the word
+            inputVec = np.zeros(self.I)#init input and True values
             realOut = np.zeros(self.O)
-            inputVec[self.I-1]=i
-            if i == len(word) -1:
-                index = self.O - 1
+            inputVec[self.I-1]=i#set last value to the length of the word
+            if i == len(word) -1:#if last letter
+                index = self.O - 1#set output to node meaning end the word
             else:
-                index = string.ascii_lowercase.index(word[i+1])
+                index = string.ascii_lowercase.index(word[i+1])#set node output to letter index
             realOut[index] = 1
 
-            for j in range(self.lettersAccepted):
-                if not ((i-j) + 1):
+            for j in range(self.lettersAccepted):#for each letter accepted
+                if not ((i-j) + 1):#break if at the beginning of the word
                     break
-                index = string.ascii_lowercase.index(word[i-j])
+                index = string.ascii_lowercase.index(word[i-j])#set the correct index in the input to 1
                 inputVec[26*j+ index] = 1
-            # print('I:',inputVec)
-            # print('R:',realOut)
-            output, hidden = self.forward(inputVec)
-            # print('O:',output)
-            self.updateWeights(inputVec,hidden,output,realOut)
-        return self.cost(realOut,output)
+            output, hidden = self.forward(inputVec)#calculate letter distribution
+            self.updateWeights(inputVec,hidden,output,realOut)#BACKPROP
+        return self.cost(realOut,output)#and return cost
 
     def addWords(self,words):
+        '''update repository of words'''
         self.words += words
 
     def getLetter(self, word,length):
-        inputVec = np.zeros(self.I)
+        '''use NN to choose next letter'''
+        inputVec = np.zeros(self.I)#this is copy and pasted from above to
+        #determine what the correct input vector is
         inputVec[self.I-1]=length
         for j in range(self.lettersAccepted):
             if not ((len(word)-j)):
                 break
             index = string.ascii_lowercase.index(word[-j-1])
             inputVec[26*j+ index] = 1
-        # print('W:',word)
-        # print('I:',inputVec)
         output, hidden = self.forward(inputVec)
-        # print('O:',output)
-        letter = np.random.choice(chararray,1,p = output)
+
+        letter = np.random.choice(chararray,1,p = output)#based on the output,
+        #select random letter from output distribution
         if letter != '':
-            # print(letter)
             return letter[0]
         else:
             return None
 
     def getWord(self, base = None):
-        if base is None:
+        '''iteratively call get letter to build a word'''
+        if base is None:#set start of word if one is given
             base = ''
         rLetter = self.getLetter(base,len(base))
-        while rLetter:
+        while rLetter:#get letters and add them to the word
             base += rLetter
             rLetter = self.getLetter(base,len(base))
         return base
 
     def runNTimes(self,N):
-        for i in range(N):
+        for i in range(N):#train the model n iterations
             randword = np.random.randint(0,len(self.words))
             word = self.words[randword]
             cost = self.batch(word)
@@ -119,93 +119,43 @@ class NameNN:
                 print("Iteration:",i)
                 print("Cost:",cost)
 
-
-
-
-
-
-# determine the classification rate
-# num correct / num total
-# def classification_rate(Y, P):
-#     n_correct = 0
-#     n_total = 0
-#     for i in range(len(Y)):
-#         n_total += 1
-#         if Y[i] == P[i]:
-#             n_correct += 1
-#     return float(n_correct) / n_total
-
-
-
-
-
-
-def main():
-    # create the data
-    Nclass = 500
-    D = 2 # dimensionality of input
-    M = 3 # hidden layer size
-    K = 3 # number of classes
-
-    X1 = np.random.randn(Nclass, D) + np.array([0, -2])
-    X2 = np.random.randn(Nclass, D) + np.array([2, 2])
-    X3 = np.random.randn(Nclass, D) + np.array([-2, 2])
-    X = np.vstack([X1, X2, X3])
-
-    Y = np.array([0]*Nclass + [1]*Nclass + [2]*Nclass)
-    N = len(Y)
-    # turn Y into an indicator matrix for training
-    T = np.zeros((N, K))
-    for i in range(N):
-        T[i, Y[i]] = 1
-
-    # let's see what it looks like
-    plt.scatter(X[:,0], X[:,1], c=Y, s=100, alpha=0.5)
-    plt.show()
-
-    # randomly initialize weights
-    W1 = np.random.randn(D, M)
-    b1 = np.random.randn(M)
-    W2 = np.random.randn(M, K)
-    b2 = np.random.randn(K)
-
-    learning_rate = 1e-3
-    costs = []
-    for epoch in range(1000):
-        output, hidden = forward(X, W1, b1, W2, b2)
-        if epoch % 100 == 0:
-            c = cost(T, output)
-            P = np.argmax(output, axis=1)
-            r = classification_rate(Y, P)
-            print("cost:", c, "classification_rate:", r)
-            costs.append(c)
-
-        # this is gradient ASCENT, not DESCENT
-        # be comfortable with both!
-        # oldW2 = W2.copy()
-        W2 += learning_rate * derivative_w2(hidden, T, output)
-        b2 += learning_rate * derivative_b2(T, output)
-        W1 += learning_rate * derivative_w1(X, hidden, T, output, W2)
-        b1 += learning_rate * derivative_b1(T, output, W2, hidden)
-
-    plt.plot(costs)
-    plt.show()
-def getNames(filename):
+def getNamestxt(filename):
+    '''build database from text file where it only takes first word from
+    each line'''
     with open(filename,"r") as f:
         wordlist = [r.lower().replace("\n",'') for r in f]
+    return wordlist
+
+def getNamescsv(filename):
+    '''build database from csv where it only takes the first word ff first column'''
+    wordlist = []
+    with open(filename, 'r') as csvfile:
+        reader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+        for row in reader:
+            f = str(row[0])
+            # print(type(f))
+            f = re.split("[, '\-!?:.$12368&]+", f)
+            # print(f)
+
+            if len(f[0]) > 2: wordlist.append(f[0].lower())
+            # for i in f[0].lower():
+            #     if i not in string.ascii_lowercase:
+            #         print(i)
     return wordlist
 
 
 if __name__ == '__main__':
     wordlist = ['abababab','bababab','cdcdcdcd','dcdcdcdc','efefefefe','fefefefe']
-    wordlist2 = ['mark', 'jason', 'nick','will','kevin','sam','eathon','ben', 'allen']
+    wordlist2 = ['mark', 'jason', 'nick','will','kevin','sam','ethan','ben', 'allen']
     inputSize = 26 * 3
     hiddenSize = 26 * 1.5
-    nn = NameNN(inputSize,hiddenSize)
-    wordlist3 = getNames('femalenames.txt')
+    nn = NameNN(inputSize,hiddenSize, learning_rate = 1e-2)
+    # wordlist3 = getNamestxt('femalenames.txt')
+    wordlist3 = getNamescsv('dognames.csv')
+    print(wordlist3)
     nn.addWords(wordlist3)
-    nn.runNTimes(40000)
+    nn.runNTimes(400000)
     for i in chararray:
-        print(nn.getWord(base = ''))
-        print(nn.getWord(base = ''))
-        print(nn.getWord(base = ''))
+        print(nn.getWord(base = i))
+        print(nn.getWord(base = i))
+        print(nn.getWord(base = i))
